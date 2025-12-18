@@ -28,9 +28,9 @@ class DiceFocalLoss(nn.Module):
         probs = torch.sigmoid(logits)
 
         # 将 targets 拉平处理，确保计算不受 batch/空间维度限制
-        logits_flat = logits.view(-1)
-        targets_flat = targets.view(-1)
-        probs_flat = probs.view(-1)
+        logits_flat = logits.contiguous().view(-1)
+        targets_flat = targets.contiguous().view(-1)
+        probs_flat = probs.contiguous().view(-1)
 
         # --- Focal Loss 计算 ---
         # 使用 binary_cross_entropy_with_logits 保证数值稳定性
