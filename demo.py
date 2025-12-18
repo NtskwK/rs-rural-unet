@@ -12,6 +12,7 @@ from unet.net import UNet
 from unet.train import train
 
 lr = 1e-4
+batch_size = 64
 
 
 def main():
@@ -60,9 +61,9 @@ def main():
     # 使用DataLoader包装数据集，并设置batch_size和num_workers
     print("Initializing dataloaders...")
     train_dataloader = DataLoader(
-        train_dataset, batch_size=16, num_workers=4, shuffle=True
+        train_dataset, batch_size=batch_size, num_workers=4, shuffle=True
     )
-    val_dataloader = DataLoader(val_dataset, batch_size=16, num_workers=4)
+    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, num_workers=4)
 
     print("Initializing model...")
     if torch.cuda.is_available():
