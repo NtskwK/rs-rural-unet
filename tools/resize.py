@@ -48,7 +48,7 @@ def resize(img: np.ndarray, scale: float = 0.25) -> np.ndarray:
 
 def main():
     for ds, dt, it in tqdm(list(itertools.product(ds_type, data_type, img_type))):
-        target_dir = Path(f"dataset\\{ds}\\{dt}\\{it}")
+        target_dir = Path(f"dataset/{ds}/{dt}/{it}")
         dist_dir = Path(str(target_dir) + "_resized")
         dist_dir.mkdir(exist_ok=True)
 
