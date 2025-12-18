@@ -14,6 +14,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from pathlib import Path
 
+import itertools
+
 import cv2
 import numpy as np
 from tqdm import tqdm
@@ -23,13 +25,13 @@ data_type = ["Rural", "Urban"]
 img_type = ["images_png", "masks_png"]
 
 
-def resize(img: np.ndarray, scale: float = 0.5) -> np.ndarray:
+def resize(img: np.ndarray, scale: float = 0.25) -> np.ndarray:
     """
     Resize the input image by a scale factor.
 
     Args:
         img (np.ndarray): Input image.
-        scale (float): Scale factor. Defaults to 0.5 (half size).
+        scale (float): Scale factor. Defaults to 0.25 (quarter size).
 
     Returns:
         np.ndarray: Resized image.
@@ -45,7 +47,7 @@ def resize(img: np.ndarray, scale: float = 0.5) -> np.ndarray:
 
 
 def main():
-    for ds, dt, it in tqdm(zip(ds_type, data_type, img_type)):
+    for ds, dt, it in tqdm(list(itertools.product(ds_type, data_type, img_type))):
         target_dir = Path(f"dataset\\{ds}\\{dt}\\{it}")
         dist_dir = Path(str(target_dir) + "_resized")
         dist_dir.mkdir(exist_ok=True)
