@@ -35,4 +35,6 @@ class LoveDA(Dataset):
         else:
             data = torch.from_numpy(data).permute(2, 0, 1).float() / 255.0
 
+        label = torch.from_numpy(label).long()
+
         return data, label
