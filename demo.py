@@ -12,7 +12,7 @@ from unet.net import UNet
 from unet.train import train
 
 lr = 1e-5
-batch_size = 64
+batch_size = 32
 
 
 def main():
