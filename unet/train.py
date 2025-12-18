@@ -1,4 +1,5 @@
 import torch
+from tqdm import tqdm
 
 
 def validate_model(model, val_loader, loss_fn, device):
@@ -22,10 +23,12 @@ def validate_model(model, val_loader, loss_fn, device):
     return avg_loss
 
 
-def train(model, train_dataloader, device, val_dataloader, criterion, optimizer, num_epochs):
+def train(
+    model, train_dataloader, device, val_dataloader, criterion, optimizer, num_epochs
+):
     model.to(device)
-    for epoch in range(num_epochs):
-        for batch_idx, (data, target) in enumerate(train_dataloader):
+    for epoch in tqdm(range(num_epochs)):
+        for batch_idx, (data, target) in tqdm(enumerate(train_dataloader)):
             data, target = data.to(device), target.to(device)
             optimizer.zero_grad()
             output = model(data)
@@ -37,7 +40,9 @@ def train(model, train_dataloader, device, val_dataloader, criterion, optimizer,
             optimizer.step()
 
             if batch_idx % 10 == 0:
-                print(f"Epoch: {epoch}, Batch: {batch_idx}, Training Loss: {loss.item():.4f}")
+                print(
+                    f"Epoch: {epoch}, Batch: {batch_idx}, Training Loss: {loss.item():.4f}"
+                )
 
         val_loss = validate_model(model, val_dataloader, criterion, device)
         print(f"Epoch: {epoch}, Validation Loss: {val_loss:.4f}")

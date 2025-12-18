@@ -11,6 +11,7 @@ from unet.train import train
 
 
 def main():
+    print("Initializing datasets...")
     # 创建数据集对象
     train_rural_dataset = LoveDA(
         Path("dataset/Train/Rural/images_png_resized"),
@@ -34,12 +35,20 @@ def main():
     val_dataset = torch.utils.data.ConcatDataset([val_rural_dataset, val_urban_dataset])
 
     # 使用DataLoader包装数据集，并设置batch_size和num_workers
+    print("Initializing dataloaders...")
     train_dataloader = DataLoader(
         train_dataset, batch_size=16, num_workers=4, shuffle=True
     )
     val_dataloader = DataLoader(val_dataset, batch_size=16, num_workers=4)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("Initializing model...")
+    if torch.cuda.is_available():
+        print("Using GPU...")
+        device = torch.device("cuda")
+    else:
+        print("Using CPU...")
+        device = torch.device("cpu")
+
     net = UNet(3, 8).to(device)
 
     # 根据实际情况调整类别数量和预设权重
@@ -51,14 +60,16 @@ def main():
     # 荒地	    5
     # 森林	    6
     # 农业用地	7
+    print("Initializing loss...")
     loss = CombinedLoss(
         weight=torch.tensor([0.0, 1.0, 5.0, 8.0, 10.0, 1.0, 1.0, 1.0]), num_classes=8
     ).to(device)
 
+    print("Initializing optimizer...")
     optimizer = optim.AdamW(net.parameters(), lr=1e-4, weight_decay=1e-4)
 
+    print("Training...")
     net.train()
-
     train(net, train_dataloader, device, val_dataloader, loss, optimizer, num_epochs=20)
 
 
