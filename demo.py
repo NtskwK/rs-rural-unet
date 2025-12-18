@@ -11,28 +11,36 @@ from unet.loss import CombinedLoss  # 导入自定义损失函数
 from unet.net import UNet
 from unet.train import train
 
+lr = 1e-4
+
 
 def main():
     print("Initializing datasets...")
     # 创建数据集对象
-    custom_transform = v2.Compose(
+    train_transform = v2.Compose(
         [
-            v2.ToTensor(),
-            v2.Resize((256, 256)),
+            v2.Resize((256, 256), antialias=True),
+            v2.RandomRotation(degrees=(-15.0, 15.0)),
+            v2.RandomHorizontalFlip(p=0.5),
             v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
-            # transforms.RandomRotation(5), # 旋转会导致mask和image不对应，除非同时旋转
+            v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
+    val_transform = v2.Compose(
+        [
+            v2.Resize((256, 256), antialias=True),
             v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
     )
     train_rural_dataset = LoveDA(
         Path("dataset/Train/Rural/images_png_resized"),
         Path("dataset/Train/Rural/masks_png_resized"),
-        transform=custom_transform,
+        transform=train_transform,
     )
     train_urban_dataset = LoveDA(
         Path("dataset/Train/Urban/images_png_resized"),
         Path("dataset/Train/Urban/masks_png_resized"),
-        transform=custom_transform,
+        transform=train_transform,
     )
     train_dataset = torch.utils.data.ConcatDataset(
         [train_rural_dataset, train_urban_dataset]
@@ -40,12 +48,12 @@ def main():
     val_rural_dataset = LoveDA(
         Path("dataset/Val/Rural/images_png_resized"),
         Path("dataset/Val/Rural/masks_png_resized"),
-        transform=custom_transform,
+        transform=val_transform,
     )
     val_urban_dataset = LoveDA(
         Path("dataset/Val/Urban/images_png_resized"),
         Path("dataset/Val/Urban/masks_png_resized"),
-        transform=custom_transform,
+        transform=val_transform,
     )
     val_dataset = torch.utils.data.ConcatDataset([val_rural_dataset, val_urban_dataset])
 
@@ -80,11 +88,11 @@ def main():
     # 农业用地	7
     print("Initializing loss...")
     loss = CombinedLoss(
-        weight=torch.tensor([0.0, 1.0, 5.0, 8.0, 10.0, 1.0, 1.0, 1.0]), num_classes=8
+        weight=torch.tensor([0.0, 1.0, 3.0, 5.0, 5.0, 2.0, 1.0, 1.0]), num_classes=8
     ).to(device)
 
     print("Initializing optimizer...")
-    optimizer = optim.AdamW(net.parameters(), lr=1e-4, weight_decay=1e-4)
+    optimizer = optim.AdamW(net.parameters(), lr=lr, weight_decay=1e-4)
 
     print("Training...")
     net.train()

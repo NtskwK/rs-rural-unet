@@ -27,8 +27,8 @@ def train(
     model, train_dataloader, device, val_dataloader, criterion, optimizer, num_epochs
 ):
     model.to(device)
-    for epoch in tqdm(range(num_epochs)):
-        for batch_idx, (data, target) in tqdm(enumerate(train_dataloader)):
+    for epoch in range(num_epochs):
+        for batch_idx, (data, target) in enumerate(train_dataloader):
             data, target = data.to(device), target.to(device)
             optimizer.zero_grad()
             output = model(data)
