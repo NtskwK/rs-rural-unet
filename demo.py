@@ -1,3 +1,4 @@
+from unet.loss import DiceFocalLoss
 import cv2
 from pathlib import Path
 
@@ -7,7 +8,6 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import v2
 
 from unet.dataloader import LoveDA
-from unet.loss import CombinedLoss  # 导入自定义损失函数
 from unet.net import UNet
 from unet.train import train
 
@@ -87,9 +87,7 @@ def main():
     # 森林	    6
     # 农业用地	7
     print("Initializing loss...")
-    loss = CombinedLoss(
-        weight=torch.tensor([0.0, 1.0, 3.0, 5.0, 5.0, 2.0, 1.0, 1.0]), num_classes=8
-    ).to(device)
+    loss = DiceFocalLoss().to(device)
 
     print("Initializing optimizer...")
     optimizer = optim.AdamW(net.parameters(), lr=lr, weight_decay=1e-4)
