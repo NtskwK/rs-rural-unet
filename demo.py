@@ -11,7 +11,7 @@ from unet.dataloader import LoveDA
 from unet.net import UNet
 from unet.train import train
 
-lr = 1e-4
+lr = 1e-5
 batch_size = 64
 
 
@@ -91,7 +91,7 @@ def main():
     loss = DiceFocalLoss().to(device)
 
     print("Initializing optimizer...")
-    optimizer = optim.AdamW(net.parameters(), lr=lr, weight_decay=1e-4)
+    optimizer = optim.AdamW(net.parameters(), lr=lr, weight_decay=1e-3)
 
     print("Training...")
     net.train()
