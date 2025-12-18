@@ -27,6 +27,9 @@ def train(
     model, train_dataloader, device, val_dataloader, criterion, optimizer, num_epochs
 ):
     model.to(device)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, "min", patience=3, factor=0.5
+    )
     for epoch in range(num_epochs):
         for batch_idx, (data, target) in enumerate(train_dataloader):
             data, target = data.to(device), target.to(device)
@@ -45,4 +48,8 @@ def train(
                 )
 
         val_loss = validate_model(model, val_dataloader, criterion, device)
+
+        scheduler.step(val_loss)
+        current_lr = optimizer.param_groups[0]["lr"]
+
         print(f"Epoch: {epoch}, Validation Loss: {val_loss:.4f}")
