@@ -48,7 +48,7 @@ class CombinedLoss(nn.Module):
         cardinality = torch.sum(probs + target_one_hot, dims)
 
         # smooth=1e-6 防止分母为 0
-        dice_score = (2. * intersection + 1e-6) / (cardinality + 1e-6)
+        dice_score = (2.0 * intersection + 1e-6) / (cardinality + 1e-6)
 
         # 对所有类别取平均 (Macro Dice)
         dice_loss = 1 - dice_score.mean()
