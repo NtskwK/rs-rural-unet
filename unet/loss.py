@@ -17,6 +17,14 @@ class DiceFocalLoss(nn.Module):
 
     def forward(self, logits, targets):
         # 1. 准备工作：确保概率分布
+        # 如果 targets 是类索引 (B, H, W)，转换为 one-hot (B, C, H, W)
+        if logits.dim() != targets.dim():
+            targets = (
+                F.one_hot(targets, num_classes=logits.shape[1])
+                .permute(0, 3, 1, 2)
+                .float()
+            )
+
         probs = torch.sigmoid(logits)
 
         # 将 targets 拉平处理，确保计算不受 batch/空间维度限制
