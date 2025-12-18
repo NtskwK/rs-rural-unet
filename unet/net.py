@@ -28,8 +28,8 @@ class CropAndConcat(nn.Module):
 
         half_diff = (x1_size - x2_size) // 2
         x1_cropped = x1[
-                     :, :, half_diff: (x1_size - half_diff), half_diff: (x1_size - half_diff)
-                     ]  # crop
+            :, :, half_diff : (x1_size - half_diff), half_diff : (x1_size - half_diff)
+        ]  # crop
         return torch.cat([x1_cropped, x2], dim=1)
 
 
@@ -102,7 +102,7 @@ class UNet(nn.Module):
 
 
 if __name__ == "__main__":
-    img = torch.randn((1, 3, 512, 512))
+    img = torch.randn((1, 3, 256, 256))
     print("input image shape:")
     print(img.shape)
     model = UNet()
