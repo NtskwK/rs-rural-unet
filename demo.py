@@ -10,7 +10,7 @@ from unet.loss import DiceFocalLoss
 from unet.net import UNet
 from unet.train import train
 
-lr = 1e-5
+lr = 1e-4
 batch_size = 32
 
 
