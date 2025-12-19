@@ -3,16 +3,27 @@ import torch.nn as nn
 
 
 class DoubleConv(nn.Module):
-    def __init__(self, in_c, out_c, mid_c=None) -> None:
+    def __init__(self, in_c, out_c, mid_c=None, dropout_rate=0.0) -> None:
         if mid_c is None:
             mid_c = out_c
         super().__init__()
-        self.double_conv = nn.Sequential(
+        layers = [
             nn.Conv2d(in_c, mid_c, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=True)
+        ]
+
+        if dropout_rate > 0:
+            layers.append(nn.Dropout2d(dropout_rate))
+
+        layers.extend([
             nn.Conv2d(mid_c, out_c, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-        )
+            nn.ReLU(inplace=True)
+        ])
+
+        if dropout_rate > 0:
+            layers.append(nn.Dropout2d(dropout_rate))
+
+        self.double_conv = nn.Sequential(*layers)
 
     def forward(self, x):
         return self.double_conv(x)
@@ -34,26 +45,27 @@ class CropAndConcat(nn.Module):
 
 
 class UNet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=1) -> None:
+    def __init__(self, in_channels=3, out_channels=1, dropout_rate=0.0) -> None:
         super(UNet, self).__init__()
+        self.dropout_rate = dropout_rate
         self.max_pool_2d = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.down_conv_1 = DoubleConv(in_channels, 64)
-        self.down_conv_2 = DoubleConv(64, 128)
-        self.down_conv_3 = DoubleConv(128, 256)
-        self.down_conv_4 = DoubleConv(256, 512)
-        self.down_conv_5 = DoubleConv(512, 1024)
+        self.down_conv_1 = DoubleConv(in_channels, 64, dropout_rate=dropout_rate)
+        self.down_conv_2 = DoubleConv(64, 128, dropout_rate=dropout_rate)
+        self.down_conv_3 = DoubleConv(128, 256, dropout_rate=dropout_rate)
+        self.down_conv_4 = DoubleConv(256, 512, dropout_rate=dropout_rate)
+        self.down_conv_5 = DoubleConv(512, 1024, dropout_rate=dropout_rate)
 
         self.up_trans_1 = nn.ConvTranspose2d(1024, 512, kernel_size=2, stride=2)
-        self.up_conv_1 = DoubleConv(1024, 512)
+        self.up_conv_1 = DoubleConv(1024, 512, dropout_rate=dropout_rate)
 
         self.up_trans_2 = nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2)
-        self.up_conv_2 = DoubleConv(512, 256)
+        self.up_conv_2 = DoubleConv(512, 256, dropout_rate=dropout_rate)
 
         self.up_trans_3 = nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2)
-        self.up_conv_3 = DoubleConv(256, 128)
+        self.up_conv_3 = DoubleConv(256, 128, dropout_rate=dropout_rate)
 
         self.up_trans_4 = nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2)
-        self.up_conv_4 = DoubleConv(128, 64)
+        self.up_conv_4 = DoubleConv(128, 64, dropout_rate=dropout_rate)
 
         self.crop_and_concat_5 = CropAndConcat()
         self.crop_and_concat_4 = CropAndConcat()

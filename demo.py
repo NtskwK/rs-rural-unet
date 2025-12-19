@@ -79,7 +79,18 @@ def main():
     net = UNet(3, 8).to(device)
 
     print("Initializing loss...")
-    loss = DiceFocalLoss().to(device)
+    # value
+    # 无效       0
+    # 背景	    1
+    # 建筑物	    2
+    # 道路	    3
+    # 水体	    4
+    # 荒地	    5
+    # 森林	    6
+    # 农业用地	7
+
+    # 创建忽略索引0的损失函数，num_classes设为8（包括0）
+    loss = DiceFocalLoss(num_classes=8, ignore_index=0).to(device)
 
     print("Initializing optimizer...")
     optimizer = optim.AdamW(net.parameters(), lr=lr, weight_decay=1e-3)

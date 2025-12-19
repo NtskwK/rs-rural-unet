@@ -4,8 +4,8 @@ import cv2
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
-from torchvision.transforms import v2
 from torchvision import tv_tensors
+from torchvision.transforms import v2
 
 
 class LoveDA(Dataset):
@@ -14,10 +14,12 @@ class LoveDA(Dataset):
         data_dir: Path,
         label_dir: Path,
         transform: transforms.Compose | v2.Compose | None = None,
+            num_classes: int = 1,
     ):
         self.data_paths = sorted(list(data_dir.glob("*.png")))
         self.label_paths = sorted(list(label_dir.glob("*.png")))
         self.transform = transform
+        self.num_classes = num_classes
 
     def __len__(self):
         return len(self.data_paths)

@@ -1,5 +1,4 @@
 import torch
-from tqdm import tqdm
 
 
 def validate_model(model, val_loader, loss_fn, device):
@@ -27,9 +26,16 @@ def train(
     model, train_dataloader, device, val_dataloader, criterion, optimizer, num_epochs
 ):
     model.to(device)
+    # 更改学习率调度器为更敏感的参数
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, "min", patience=3, factor=0.5
+        optimizer, "min", patience=2, factor=0.5, min_lr=1e-7
     )
+
+    # 添加早停机制
+    best_val_loss = float('inf')
+    patience_counter = 0
+    patience_limit = 5
+    
     for epoch in range(num_epochs):
         for batch_idx, (data, target) in enumerate(train_dataloader):
             data, target = data.to(device), target.to(device)
@@ -49,7 +55,21 @@ def train(
 
         val_loss = validate_model(model, val_dataloader, criterion, device)
 
+        # 更新学习率
         scheduler.step(val_loss)
         current_lr = optimizer.param_groups[0]["lr"]
 
-        print(f"Epoch: {epoch}, Validation Loss: {val_loss:.4f}")
+        print(f"Epoch: {epoch}, Validation Loss: {val_loss:.4f}, LR: {current_lr:.6f}")
+
+        # 早停机制
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            patience_counter = 0
+            # 保存最佳模型
+            torch.save(model.state_dict(), 'best_model.pth')
+        else:
+            patience_counter += 1
+
+        if patience_counter >= patience_limit:
+            print(f"Early stopping at epoch {epoch}")
+            break
