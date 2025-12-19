@@ -26,27 +26,23 @@ class DiceFocalLoss(nn.Module):
 
             # 如果所有像素都被忽略，则返回0
             if not valid_mask.any():
-                return torch.tensor(0.0, device=logits.device)
-
-            # 只保留有效的像素
-            valid_targets = targets[valid_mask]
-            valid_logits = logits[valid_mask.unsqueeze(0).expand_as(logits)].view(-1, *logits.shape[1:])
-
-            # 如果logits的第一维是类别数，则需要特殊处理
-            if valid_logits.shape[0] == valid_mask.sum() * logits.shape[1]:
-                valid_logits = valid_logits.view(logits.shape[1], -1).t().contiguous().view(-1, logits.shape[1])
+                return torch.tensor(0.0, device=logits.device, requires_grad=True)
         else:
-            valid_targets = targets
-            valid_logits = logits
+            valid_mask = torch.ones_like(targets, dtype=torch.bool)
 
         # 对于多类别分割，使用 softmax 而不是 sigmoid
         if self.num_classes > 1:
             # 使用 CrossEntropyLoss 兼容的格式
             if logits.shape[1] == 1:  # 单通道输出
                 # 二分类情况
-                probs = torch.sigmoid(valid_logits)
+                probs = torch.sigmoid(logits)
+                valid_probs = probs[:, 0][valid_mask]  # 取第一个通道
+                valid_targets_float = targets[valid_mask].float()
+                
                 BCE = F.binary_cross_entropy_with_logits(
-                    valid_logits, valid_targets.float(), reduction="none"
+                    logits[:, 0][valid_mask],
+                    valid_targets_float,
+                    reduction="none"
                 )
 
                 pt = torch.exp(-BCE)
@@ -54,16 +50,23 @@ class DiceFocalLoss(nn.Module):
                 focal_loss = focal_loss.mean()
 
                 # Dice loss
-                intersection = (probs * valid_targets.float()).sum()
+                intersection = (valid_probs * valid_targets_float).sum()
                 dice_score = (2.0 * intersection + self.smooth) / (
-                        probs.sum() + valid_targets.float().sum() + self.smooth
+                        valid_probs.sum() + valid_targets_float.sum() + self.smooth
                 )
                 dice_loss = 1 - dice_score
 
                 return focal_loss + dice_loss
             else:
                 # 多分类情况
-                # valid_targets 应该是 (B, H, W) 格式，包含类别索引
+                # targets 应该是 (B, H, W) 格式，包含类别索引
+                valid_targets = targets[valid_mask]
+                # 对logits进行相应筛选
+                valid_logits = logits.permute(0, 2, 3, 1)[valid_mask]  # (B, C, H, W) -> (B, H, W, C) -> (N, C)
+
+                if valid_logits.numel() == 0:
+                    return torch.tensor(0.0, device=logits.device, requires_grad=True)
+                
                 ce_loss = F.cross_entropy(valid_logits, valid_targets, reduction='none')
                 pt = torch.exp(-ce_loss)
                 focal_loss = self.alpha * (1 - pt) ** self.gamma * ce_loss
@@ -72,61 +75,53 @@ class DiceFocalLoss(nn.Module):
                 # 对每个类别计算 Dice loss
                 dice_loss_total = 0
                 valid_logits_softmax = F.softmax(valid_logits, dim=1)
-                classes_to_consider = self.num_classes
-                if self.ignore_index != -100 and self.ignore_index < self.num_classes:
-                    classes_to_consider -= 1  # 排除被忽略的类别
 
+                effective_classes = 0
                 for class_idx in range(self.num_classes):
                     if class_idx == self.ignore_index:
                         continue
 
                     # 创建当前类别的 mask
                     class_mask = (valid_targets == class_idx).float()
-                    class_probs = valid_logits_softmax[:, class_idx,
-                                  ...] if valid_logits_softmax.dim() > 3 else valid_logits_softmax[:, class_idx]
+                    if class_mask.sum() == 0:  # 如果这个类别没有像素，跳过
+                        continue
 
+                    class_probs = valid_logits_softmax[:, class_idx]
+                    
                     intersection = (class_probs * class_mask).sum()
                     union = class_probs.sum() + class_mask.sum()
                     dice_score = (2.0 * intersection + self.smooth) / (union + self.smooth)
                     dice_loss_total += 1 - dice_score
+                    effective_classes += 1
 
-                dice_loss = dice_loss_total / classes_to_consider if classes_to_consider > 0 else 0
-
+                dice_loss = dice_loss_total / effective_classes if effective_classes > 0 else torch.tensor(0.0,
+                                                                                                           device=logits.device,
+                                                                                                           requires_grad=True)
+                
                 return focal_loss + dice_loss
         else:
-            # 原始逻辑保持不变
-            if valid_logits.dim() != valid_targets.dim():
-                valid_targets = (
-                    F.one_hot(valid_targets, num_classes=valid_logits.shape[1])
-                    .permute(0, 3, 1, 2)
-                    .float()
-                )
+            # 原始逻辑保持不变（适用于二分类）
+            valid_logits = logits[valid_mask]
+            valid_targets = targets[valid_mask]
+
+            if valid_logits.numel() == 0:
+                return torch.tensor(0.0, device=logits.device, requires_grad=True)
 
             probs = torch.sigmoid(valid_logits)
-
-            # 将 targets 拉平处理，确保计算不受 batch/空间维度限制
-            logits_flat = valid_logits.contiguous().view(-1)
-            targets_flat = valid_targets.contiguous().view(-1)
-            probs_flat = probs.contiguous().view(-1)
-
-            # --- Focal Loss 计算 ---
-            # 使用 binary_cross_entropy_with_logits 保证数值稳定性
             BCE = F.binary_cross_entropy_with_logits(
-                logits_flat, targets_flat, reduction="none"
+                valid_logits, valid_targets.float(), reduction="none"
             )
-            pt = torch.exp(-BCE)  # pt 是模型预测正确的概率
+            pt = torch.exp(-BCE)
             focal_loss = self.alpha * (1 - pt) ** self.gamma * BCE
             focal_loss = focal_loss.mean()
 
-            # --- Dice Loss 计算 ---
-            intersection = (probs_flat * targets_flat).sum()
+            # Dice loss
+            intersection = (probs * valid_targets.float()).sum()
             dice_score = (2.0 * intersection + self.smooth) / (
-                    probs_flat.sum() + targets_flat.sum() + self.smooth
+                    probs.sum() + valid_targets.float().sum() + self.smooth
             )
             dice_loss = 1 - dice_score
 
-            # --- 合并 ---
-            # 常见的经验配比是 1:1，也可以根据需求调整权重
             return focal_loss + dice_loss
 
 
@@ -134,11 +129,11 @@ def main():
     # --- 使用示例 ---
     # 假设有 3 类，给第 2、3 类（小物体）更高权重
     weights = torch.tensor([1.0, 5.0, 10.0]).cuda()
-    criterion = DiceFocalLoss().cuda()
+    criterion = DiceFocalLoss(num_classes=8, ignore_index=0).cuda()
 
-    # 模拟输入: [Batch=2, Classes=3, H=64, W=64]
-    outputs = torch.randn(2, 3, 64, 64).cuda()
-    labels = torch.randint(0, 3, (2, 64, 64)).cuda()
+    # 模拟输入: [Batch=2, Classes=8, H=64, W=64]
+    outputs = torch.randn(2, 8, 64, 64).cuda()
+    labels = torch.randint(0, 8, (2, 64, 64)).cuda()  # 包含0-7的标签
 
     loss = criterion(outputs, labels)
     print(f"Total Loss: {loss.item()}")
