@@ -1,5 +1,3 @@
-from unet.loss import DiceFocalLoss
-import cv2
 from pathlib import Path
 
 import torch
@@ -8,6 +6,7 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import v2
 
 from unet.dataloader import LoveDA
+from unet.loss import DiceFocalLoss
 from unet.net import UNet
 from unet.train import train
 
@@ -20,9 +19,10 @@ def main():
     # 创建数据集对象
     train_transform = v2.Compose(
         [
-            v2.Resize((256, 256), antialias=True),
-            v2.RandomRotation(degrees=(-15.0, 15.0)),
+            v2.RandomResizedCrop((256, 256), scale=(0.8, 1.2), ratio=(0.75, 1.33)),
+            v2.RandomRotation(degrees=(-180.0, 180.0)),
             v2.RandomHorizontalFlip(p=0.5),
+            v2.RandomVerticalFlip(p=0.5),
             v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
             v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
@@ -78,15 +78,6 @@ def main():
 
     net = UNet(3, 8).to(device)
 
-    # 根据实际情况调整类别数量和预设权重
-    # 无效      0
-    # 背景	    1
-    # 建筑物	2
-    # 道路	    3
-    # 水体	    4
-    # 荒地	    5
-    # 森林	    6
-    # 农业用地	7
     print("Initializing loss...")
     loss = DiceFocalLoss().to(device)
 
